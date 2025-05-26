@@ -22,7 +22,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(name)
 
 # Конфигурация бота
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -106,7 +106,7 @@ class Keyboards:
         return ReplyKeyboardMarkup([["Назад"]], resize_keyboard=True)
 
 # Веб-сервер для Render
-app = Flask(__name__)
+app = Flask(name)
 
 @app.route('/')
 def home():
@@ -129,19 +129,33 @@ async def buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return States.BUY
 
+async def handle_buy_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    
+    if text == "Услуги":
+        return await services(update, context)
+    elif text == "Аккаунты":
+        return await accounts(update, context)
+    elif text == "Назад":
+        await start(update, context)
+        return ConversationHandler.END
+    
+    await update.message.reply_text("Пожалуйста, используйте кнопки меню")
+    return States.BUY
+
 async def services(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Выберите услугу:",
         reply_markup=Keyboards.services_menu()
     )
     return States.SERVICE
-
-async def accounts(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def accounts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Выберите аккаунт:",
         reply_markup=Keyboards.accounts_menu()
     )
     return States.ACCOUNT
+
 async def handle_service(update: Update, context: ContextTypes.DEFAULT_TYPE):
     service = update.message.text
     
@@ -231,15 +245,12 @@ def main():
             application.add_handler(MessageHandler(filters.Regex('^(Отзывы)$'), reviews))
             application.add_handler(MessageHandler(filters.Regex('^(Поддержка)$'), support))
             application.add_handler(MessageHandler(filters.Regex('^(Профиль)$'), profile))
-            
             # Обработчик диалога покупки
             conv_handler = ConversationHandler(
                 entry_points=[MessageHandler(filters.Regex('^(Купить)$'), buy)],
                 states={
-            States.BUY: [
-                        MessageHandler(filters.Regex('^(Услуги)$'), services),
-                        MessageHandler(filters.Regex('^(Аккаунты)$'), accounts),
-                        MessageHandler(filters.Regex('^(Назад)$'), start),
+                    States.BUY: [
+                        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buy_menu),
                     ],
                     States.SERVICE: [
                         MessageHandler(filters.TEXT & ~filters.COMMAND, handle_service),
@@ -265,5 +276,5 @@ def main():
             logger.info("Перезапуск через 10 секунд...")
             time.sleep(10)
 
-if __name__ == '__main__':
+if name == 'main':
     main()
