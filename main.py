@@ -144,6 +144,10 @@ class Keyboards:
     @staticmethod
     def back_menu():
         return ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True)
+    
+    @staticmethod
+    def back_to_main_menu():
+        return ReplyKeyboardMarkup([["🔙 В главное меню"]], resize_keyboard=True)
 
 # Веб-сервер для Render
 app = Flask(__name__)
@@ -242,7 +246,7 @@ async def handle_service(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 После оплаты отправьте скриншот в этот чат.""",
                 parse_mode='HTML',
-                reply_markup=Keyboards.back_menu()
+                reply_markup=Keyboards.back_to_main_menu()
             )
             UserData.add_purchase(update.message.from_user.id)
             return ConversationHandler.END
@@ -270,7 +274,7 @@ async def handle_account(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 После оплаты отправьте скриншот в этот чат.""",
             parse_mode='HTML',
-            reply_markup=Keyboards.back_menu()
+            reply_markup=Keyboards.back_to_main_menu()
         )
         UserData.add_purchase(update.message.from_user.id)
         return ConversationHandler.END
@@ -301,7 +305,7 @@ async def handle_currency_amount(update: Update, context: ContextTypes.DEFAULT_T
 
 После оплаты отправьте скриншот в этот чат.""",
                 parse_mode='HTML',
-                reply_markup=Keyboards.back_menu()
+                reply_markup=Keyboards.back_to_main_menu()
             )
             UserData.add_purchase(update.message.from_user.id)
             return ConversationHandler.END
@@ -330,7 +334,7 @@ async def support(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 Мы всегда рады помочь!""".format(Config.SUPPORT_USERNAME),
         parse_mode='HTML',
-        reply_markup=Keyboards.back_menu()
+        reply_markup=Keyboards.back_to_main_menu()
     )
     return ConversationHandler.END
 
@@ -359,7 +363,7 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 - При проблемах сразу пишите в поддержку
 - Чем больше покупок - выше ваш статус!""",
         parse_mode='HTML',
-        reply_markup=Keyboards.back_menu()
+        reply_markup=Keyboards.back_to_main_menu()
     )
     return ConversationHandler.END
 
@@ -379,8 +383,12 @@ async def reviews(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 После покупки вы тоже можете оставить отзыв и получить бонус к следующему заказу!""".format(Config.REVIEWS_CHANNEL),
         parse_mode='HTML',
-        reply_markup=Keyboards.back_menu()
+        reply_markup=Keyboards.back_to_main_menu()
     )
+    return ConversationHandler.END
+
+async def back_to_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await start(update, context)
     return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -395,6 +403,7 @@ async def run_bot():
     application.add_handler(MessageHandler(filters.Regex('^(⭐ Отзывы)$'), reviews))
     application.add_handler(MessageHandler(filters.Regex('^(🆘 Поддержка)$'), support))
     application.add_handler(MessageHandler(filters.Regex('^(👤 Мой профиль)$'), profile))
+    application.add_handler(MessageHandler(filters.Regex('^(🔙 В главное меню)$'), back_to_main))
     
     # Обработчик диалога покупки
     conv_handler = ConversationHandler(
@@ -427,7 +436,7 @@ async def run_bot():
         },
         fallbacks=[
             CommandHandler('cancel', cancel),
-            MessageHandler(filters.Regex('^(🔙 Назад|❌ Отмена)$'), start),
+            MessageHandler(filters.Regex('^(🔙 Назад|❌ Отмена|🔙 В главное меню)$'), start),
             MessageHandler(filters.Regex('^(🛒 Купить)$'), buy)
         ],
         allow_reentry=True,
