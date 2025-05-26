@@ -142,7 +142,7 @@ async def accounts(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=Keyboards.accounts_menu()
     )
     return States.ACCOUNT
-    async def handle_service(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_service(update: Update, context: ContextTypes.DEFAULT_TYPE):
     service = update.message.text
     
     if service == "Назад":
