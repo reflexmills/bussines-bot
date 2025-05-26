@@ -240,7 +240,7 @@ async def handle_service(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📌 <b>Реквизиты для оплаты:</b>
 {Config.PAYMENT_DETAILS}
 
-После оплаты отправьте скриншот в чат с поддержкой.""",
+После оплаты отправьте скриншот в этот чат.""",
                 parse_mode='HTML',
                 reply_markup=Keyboards.back_menu()
             )
@@ -279,6 +279,10 @@ async def handle_account(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return States.ACCOUNT
 
 async def handle_currency_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if "Отмена" in update.message.text:
+        await buy(update, context)
+        return States.BUY
+    
     try:
         amount = int(update.message.text)
         service = context.user_data['selected_service']
@@ -317,7 +321,7 @@ async def support(update: Update, context: ContextTypes.DEFAULT_TYPE):
 Или вы уже совершили перевод и ожидаете получение товара, напишите нам в поддержку!
 
 ⏳ <b>Время ответа:</b> 5-15 минут (10:00-22:00 МСК)
-📩 <b>Контакты:</b> {}
+📩 <b>Контакты:</b> @{}
 
 <b>Обязательно укажите:</b>
 1. Скриншот оплаты
