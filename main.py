@@ -14,6 +14,7 @@ from flask import Flask
 from dotenv import load_dotenv
 import asyncio
 import time
+from datetime import datetime
 
 # Загрузка переменных окружения
 load_dotenv()
@@ -31,23 +32,52 @@ if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN не найден в переменных окружения")
 
 class Config:
-    SHOP_NAME = "Balon Rails Shop"
+    SHOP_NAME = "🚂 Balon Rails Shop | Premium магазин для Rail Nation"
     SUPPORT_USERNAME = "@Balon_Manager"
     REVIEWS_CHANNEL = "https://t.me/BalonRails"
     PAYMENT_DETAILS = "Сбербанк: 2202208334143592"
-    CURRENCY_RATE = 0.20
     
-    ACCOUNTS = {
-        "Аккаунт(есть все)": "▪️▪️▪️",
-        "Аккаунт с 5000бонд": "▪️▫️▪️▪️",
-        "Аккаунт с 10000бонд": "▫️▪️▪️▪️",
-        "Аккаунт с 15000бонд": "▪️▪️▪️▪️"
+    # Услуги с ценами и описанием
+    SERVICES = {
+        "Все классы и поезда - 90₽": {
+            "price": 90,
+            "emoji": "▪️▫️▪️",
+            "desc": "Полный доступ ко всем классам и поездам"
+        },
+        "80км за 5 минут - 40₽": {
+            "price": 40,
+            "emoji": "▫️▫️▪️",
+            "desc": "Быстрое продвижение в игре"
+        },
+        "Фарм бонд (с заходом на акк)": {
+            "price": 0.20,
+            "emoji": "▫️.▫️▫️▪️",
+            "desc": "1 бонд = 0.20₽ (указать количество)"
+        }
     }
     
-    SERVICES = {
-        "Все классы и поезда": "▪️▫️▪️",
-        "80км за 5 минут": "▫️▫️▪️",
-        "Фарм бонд.(с заходом на акк) 1бонд": "▫️.▫️▫️▪️"
+    # Аккаунты с ценами и описанием
+    ACCOUNTS = {
+        "Аккаунт (есть все) - 79₽": {
+            "price": 79,
+            "emoji": "▪️▪️▪️",
+            "desc": "Аккаунт с полным доступом"
+        },
+        "Аккаунт с 5000 бонд - 169₽": {
+            "price": 169,
+            "emoji": "▪️▫️▪️▪️",
+            "desc": "Аккаунт + 5000 бондов"
+        },
+        "Аккаунт с 10000 бонд - 299₽": {
+            "price": 299,
+            "emoji": "▫️▪️▪️▪️",
+            "desc": "Аккаунт + 10000 бондов"
+        },
+        "Аккаунт с 15000 бонд - 399₽": {
+            "price": 399,
+            "emoji": "▪️▪️▪️▪️",
+            "desc": "Аккаунт + 15000 бондов"
+        }
     }
 
 # Состояния диалога
@@ -59,52 +89,61 @@ class UserData:
     _data = {}
     
     @classmethod
-    def get_purchases(cls, user_id: int) -> int:
-        return cls._data.get(user_id, {}).get('purchases', 0)
+    def get_user(cls, user_id: int):
+        if user_id not in cls._data:
+            cls._data[user_id] = {
+                'purchases': 0,
+                'first_purchase': None,
+                'last_purchase': None
+            }
+        return cls._data[user_id]
     
     @classmethod
     def add_purchase(cls, user_id: int):
-        if user_id not in cls._data:
-            cls._data[user_id] = {'purchases': 0}
-        cls._data[user_id]['purchases'] += 1
+        user = cls.get_user(user_id)
+        user['purchases'] += 1
+        now = datetime.now().strftime("%d.%m.%Y %H:%M")
+        if not user['first_purchase']:
+            user['first_purchase'] = now
+        user['last_purchase'] = now
 
 # Клавиатуры
 class Keyboards:
     @staticmethod
     def main_menu():
         return ReplyKeyboardMarkup([
-            ["Купить", "Отзывы"],
-            ["Поддержка", "Профиль"]
+            ["🛒 Купить", "⭐ Отзывы"],
+            ["🆘 Поддержка", "👤 Мой профиль"]
         ], resize_keyboard=True)
     
     @staticmethod
     def buy_menu():
         return ReplyKeyboardMarkup([
-            ["Услуги", "Аккаунты"],
-            ["Назад"]
+            ["🎮 Услуги", "👥 Аккаунты"],
+            ["🔙 Назад"]
         ], resize_keyboard=True)
     
     @staticmethod
     def services_menu():
         return ReplyKeyboardMarkup(
-            [[service] for service in Config.SERVICES.keys()] + [["Назад"]],
+            [[service] for service in Config.SERVICES.keys()] + [["🔙 Назад"]],
             resize_keyboard=True
         )
     
     @staticmethod
     def accounts_menu():
         return ReplyKeyboardMarkup(
-            [[account] for account in Config.ACCOUNTS.keys()] + [["Назад"]],
+            [[account] for account in Config.ACCOUNTS.keys()] + [["🔙 Назад"]],
             resize_keyboard=True
         )
     
     @staticmethod
     def cancel_menu():
-        return ReplyKeyboardMarkup([["Отмена"]], resize_keyboard=True)
+        return ReplyKeyboardMarkup([["❌ Отмена"]], resize_keyboard=True)
     
     @staticmethod
     def back_menu():
-        return ReplyKeyboardMarkup([["Назад"]], resize_keyboard=True)
+        return ReplyKeyboardMarkup([["🔙 Назад"]], resize_keyboard=True)
 
 # Веб-сервер для Render
 app = Flask(__name__)
@@ -119,14 +158,22 @@ def run_flask():
 # Обработчики команд
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        f"Добро пожаловать в {Config.SHOP_NAME}! Выберите действие:",
+        f"""🌟 <b>Добро пожаловать в {Config.SHOP_NAME}!</b> 🌟
+
+Здесь вы можете приобрести игровые ценности для Rail Nation.
+
+Выберите действие:""",
+        parse_mode='HTML',
         reply_markup=Keyboards.main_menu()
     )
     return ConversationHandler.END
 
 async def buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Выберите категорию:",
+        """🛒 <b>Меню покупок</b>
+
+Выберите категорию товаров:""",
+        parse_mode='HTML',
         reply_markup=Keyboards.buy_menu()
     )
     return States.BUY
@@ -134,19 +181,25 @@ async def buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_buy_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     
-    if text == "Услуги":
+    if "Услуги" in text:
         await update.message.reply_text(
-            "Выберите услугу:",
+            """🎮 <b>Доступные услуги</b>
+
+Выберите нужную услугу:""",
+            parse_mode='HTML',
             reply_markup=Keyboards.services_menu()
         )
         return States.SERVICE
-    elif text == "Аккаунты":
+    elif "Аккаунты" in text:
         await update.message.reply_text(
-            "Выберите аккаунт:",
+            """👥 <b>Доступные аккаунты</b>
+
+Выберите нужный аккаунт:""",
+            parse_mode='HTML',
             reply_markup=Keyboards.accounts_menu()
         )
         return States.ACCOUNT
-    elif text == "Назад":
+    elif "Назад" in text:
         await start(update, context)
         return ConversationHandler.END
     
@@ -156,20 +209,43 @@ async def handle_buy_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_service(update: Update, context: ContextTypes.DEFAULT_TYPE):
     service = update.message.text
     
-    if service == "Назад":
-        await update.message.reply_text(
-            "Выберите категорию:",
-            reply_markup=Keyboards.buy_menu()
-        )
+    if "Назад" in service:
+        await buy(update, context)
         return States.BUY
     
     if service in Config.SERVICES:
-        context.user_data['selected_service'] = service
-        await update.message.reply_text(
-            f"Вы выбрали: {service}\nВведите количество валюты:",
-            reply_markup=Keyboards.cancel_menu()
-        )
-        return States.CURRENCY_AMOUNT
+        service_info = Config.SERVICES[service]
+        if "Фарм бонд" in service:
+            context.user_data['selected_service'] = {
+                'name': service,
+                'price': service_info['price'],
+                'type': 'bond'
+            }
+            await update.message.reply_text(
+                """💵 <b>Фарм бондов</b>
+
+1 бонд = 0.20₽
+Введите количество бондов, которое хотите приобрести:""",
+                parse_mode='HTML',
+                reply_markup=Keyboards.cancel_menu()
+            )
+            return States.CURRENCY_AMOUNT
+        else:
+            await update.message.reply_text(
+                f"""✅ <b>Вы выбрали:</b> {service}
+📝 {service_info['desc']}
+
+💸 <b>Цена:</b> {service_info['price']}₽
+
+📌 <b>Реквизиты для оплаты:</b>
+{Config.PAYMENT_DETAILS}
+
+После оплаты отправьте скриншот в этот чат.""",
+                parse_mode='HTML',
+                reply_markup=Keyboards.back_menu()
+            )
+            UserData.add_purchase(update.message.from_user.id)
+            return ConversationHandler.END
     
     await update.message.reply_text("Пожалуйста, выберите услугу из списка.")
     return States.SERVICE
@@ -177,22 +253,26 @@ async def handle_service(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_account(update: Update, context: ContextTypes.DEFAULT_TYPE):
     account = update.message.text
     
-    if account == "Назад":
-        await update.message.reply_text(
-            "Выберите категорию:",
-            reply_markup=Keyboards.buy_menu()
-        )
+    if "Назад" in account:
+        await buy(update, context)
         return States.BUY
     
     if account in Config.ACCOUNTS:
-        UserData.add_purchase(update.message.from_user.id)
-        
+        account_info = Config.ACCOUNTS[account]
         await update.message.reply_text(
-            f"Вы выбрали: {account}\n"
-            f"Оплатите на реквизиты: {Config.PAYMENT_DETAILS}\n"
-            "После оплаты отправьте скриншот.",
+            f"""✅ <b>Вы выбрали:</b> {account}
+📝 {account_info['desc']}
+
+💸 <b>Цена:</b> {account_info['price']}₽
+
+📌 <b>Реквизиты для оплаты:</b>
+{Config.PAYMENT_DETAILS}
+
+После оплаты отправьте скриншот в этот чат.""",
+            parse_mode='HTML',
             reply_markup=Keyboards.back_menu()
         )
+        UserData.add_purchase(update.message.from_user.id)
         return ConversationHandler.END
     
     await update.message.reply_text("Пожалуйста, выберите аккаунт из списка.")
@@ -201,35 +281,102 @@ async def handle_account(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_currency_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         amount = int(update.message.text)
-        service = context.user_data.get('selected_service')
-        total_price = amount * Config.CURRENCY_RATE
+        service = context.user_data['selected_service']
         
-        UserData.add_purchase(update.message.from_user.id)
-        
-        await update.message.reply_text(
-            f"Вы заказали {amount} валюты ({service})\n"
-            f"Сумма к оплате: {total_price:.2f}₽\n"
-            f"Реквизиты для оплаты: {Config.PAYMENT_DETAILS}\n"
-            "После оплаты отправьте скриншот.",
-            reply_markup=Keyboards.back_menu()
-        )
-        return ConversationHandler.END
+        if service['type'] == 'bond':
+            total_price = amount * service['price']
+            await update.message.reply_text(
+                f"""💵 <b>Детали заказа</b>
+
+Вы заказали: {amount} бондов
+Цена за 1 бонд: 0.20₽
+Итоговая сумма: {total_price:.2f}₽
+
+📌 <b>Реквизиты для оплаты:</b>
+{Config.PAYMENT_DETAILS}
+
+После оплаты отправьте скриншот в этот чат.""",
+                parse_mode='HTML',
+                reply_markup=Keyboards.back_menu()
+            )
+            UserData.add_purchase(update.message.from_user.id)
+            return ConversationHandler.END
     except ValueError:
         await update.message.reply_text("Пожалуйста, введите число.")
         return States.CURRENCY_AMOUNT
 
-async def reviews(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"Наши отзывы: {Config.REVIEWS_CHANNEL}")
-    return ConversationHandler.END
-
 async def support(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"Напишите нам в поддержку: {Config.SUPPORT_USERNAME}")
+    await update.message.reply_text(
+        """🆘 <b>Центр поддержки</b>
+
+Если у вас возникли вопросы или проблемы:
+- С оплатой заказа
+- С получением товара
+- Любые другие вопросы
+
+Или вы уже совершили перевод и ожидаете получение товара, напишите нам в поддержку!
+
+⏳ <b>Время ответа:</b> 5-15 минут (10:00-22:00 МСК)
+📩 <b>Контакты:</b> @{}
+
+<b>Обязательно укажите:</b>
+1. Скриншот оплаты
+2. Ваш Telegram ID
+3. Название заказанного товара
+
+Мы всегда рады помочь!""".format(Config.SUPPORT_USERNAME),
+        parse_mode='HTML',
+        reply_markup=Keyboards.back_menu()
+    )
     return ConversationHandler.END
 
 async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
-    purchases = UserData.get_purchases(user_id)
-    await update.message.reply_text(f"Ваш ID: {user_id}\nКоличество покупок: {purchases}")
+    user_data = UserData.get_user(user_id)
+    
+    status = "🥉 Новый клиент"
+    if user_data['purchases'] >= 10:
+        status = "🥇 VIP клиент"
+    elif user_data['purchases'] >= 3:
+        status = "🥈 Постоянный клиент"
+    
+    await update.message.reply_text(
+        f"""👤 <b>Ваш профиль</b>
+
+🆔 ID: <code>{user_id}</code>
+📊 Статус: {status}
+📦 Совершено покупок: {user_data['purchases']}
+
+📅 Первая покупка: {user_data['first_purchase'] or 'еще нет'}
+📅 Последняя покупка: {user_data['last_purchase'] or 'еще нет'}
+
+💡 <b>Советы:</b>
+- Сохраните ваш ID для быстрой помощи
+- При проблемах сразу пишите в поддержку
+- Чем больше покупок - выше ваш статус!""",
+        parse_mode='HTML',
+        reply_markup=Keyboards.back_menu()
+    )
+    return ConversationHandler.END
+
+async def reviews(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        """⭐ <b>Отзывы наших клиентов</b>
+
+Мы ценим каждого клиента и дорожим своей репутацией!
+
+📢 Официальный канал с отзывами: {}
+(Реальные скриншоты и видеоотчеты)
+
+💬 <b>Примеры отзывов:</b>
+- "Заказал аккаунт, получил через 3 минуты после оплаты!"
+- "Лучший магазин по Rail Nation, все честно!"
+- "Поддержка помогла решить вопрос за 5 минут"
+
+После покупки вы тоже можете оставить отзыв и получить бонус к следующему заказу!""".format(Config.REVIEWS_CHANNEL),
+        parse_mode='HTML',
+        reply_markup=Keyboards.back_menu()
+    )
     return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -241,13 +388,13 @@ async def run_bot():
     
     # Регистрация обработчиков
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.Regex('^(Отзывы)$'), reviews))
-    application.add_handler(MessageHandler(filters.Regex('^(Поддержка)$'), support))
-    application.add_handler(MessageHandler(filters.Regex('^(Профиль)$'), profile))
+    application.add_handler(MessageHandler(filters.Regex('^(⭐ Отзывы)$'), reviews))
+    application.add_handler(MessageHandler(filters.Regex('^(🆘 Поддержка)$'), support))
+    application.add_handler(MessageHandler(filters.Regex('^(👤 Мой профиль)$'), profile))
     
     # Обработчик диалога покупки
     conv_handler = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex('^(Купить)$'), buy)],
+        entry_points=[MessageHandler(filters.Regex('^(🛒 Купить)$'), buy)],
         states={
             States.BUY: [
                 MessageHandler(
@@ -276,8 +423,8 @@ async def run_bot():
         },
         fallbacks=[
             CommandHandler('cancel', cancel),
-            MessageHandler(filters.Regex('^(Назад|Отмена)$'), start),
-            MessageHandler(filters.Regex('^(Купить)$'), buy)
+            MessageHandler(filters.Regex('^(🔙 Назад|❌ Отмена)$'), start),
+            MessageHandler(filters.Regex('^(🛒 Купить)$'), buy)
         ],
         allow_reentry=True,
         per_user=True,
