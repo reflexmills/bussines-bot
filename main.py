@@ -250,4 +250,5 @@ def main():
     application.run_polling()
 
 if __name__ == '__main__':
+    Thread(target=run_flask, daemon=True).start()
     main()
