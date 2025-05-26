@@ -149,7 +149,7 @@ async def services(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=Keyboards.services_menu()
     )
     return States.SERVICE
-    async def accounts(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def accounts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Выберите аккаунт:",
         reply_markup=Keyboards.accounts_menu()
