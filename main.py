@@ -12,8 +12,8 @@ import os
 from threading import Thread
 from flask import Flask
 from dotenv import load_dotenv
-import time
 import asyncio
+import time
 
 # Загрузка переменных окружения
 load_dotenv()
@@ -122,6 +122,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Добро пожаловать в {Config.SHOP_NAME}! Выберите действие:",
         reply_markup=Keyboards.main_menu()
     )
+    return ConversationHandler.END
 
 async def buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -134,9 +135,17 @@ async def handle_buy_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     
     if text == "Услуги":
-        return await services(update, context)
+        await update.message.reply_text(
+            "Выберите услугу:",
+            reply_markup=Keyboards.services_menu()
+        )
+        return States.SERVICE
     elif text == "Аккаунты":
-        return await accounts(update, context)
+        await update.message.reply_text(
+            "Выберите аккаунт:",
+            reply_markup=Keyboards.accounts_menu()
+        )
+        return States.ACCOUNT
     elif text == "Назад":
         await start(update, context)
         return ConversationHandler.END
@@ -144,25 +153,15 @@ async def handle_buy_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Пожалуйста, используйте кнопки меню")
     return States.BUY
 
-async def services(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Выберите услугу:",
-        reply_markup=Keyboards.services_menu()
-    )
-    return States.SERVICE
-
-async def accounts(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Выберите аккаунт:",
-        reply_markup=Keyboards.accounts_menu()
-    )
-    return States.ACCOUNT
-
 async def handle_service(update: Update, context: ContextTypes.DEFAULT_TYPE):
     service = update.message.text
     
     if service == "Назад":
-        return await buy(update, context)
+        await update.message.reply_text(
+            "Выберите категорию:",
+            reply_markup=Keyboards.buy_menu()
+        )
+        return States.BUY
     
     if service in Config.SERVICES:
         context.user_data['selected_service'] = service
@@ -179,7 +178,11 @@ async def handle_account(update: Update, context: ContextTypes.DEFAULT_TYPE):
     account = update.message.text
     
     if account == "Назад":
-        return await buy(update, context)
+        await update.message.reply_text(
+            "Выберите категорию:",
+            reply_markup=Keyboards.buy_menu()
+        )
+        return States.BUY
     
     if account in Config.ACCOUNTS:
         UserData.add_purchase(update.message.from_user.id)
@@ -217,26 +220,27 @@ async def handle_currency_amount(update: Update, context: ContextTypes.DEFAULT_T
 
 async def reviews(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Наши отзывы: {Config.REVIEWS_CHANNEL}")
+    return ConversationHandler.END
 
 async def support(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Напишите нам в поддержку: {Config.SUPPORT_USERNAME}")
+    return ConversationHandler.END
 
 async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     purchases = UserData.get_purchases(user_id)
     await update.message.reply_text(f"Ваш ID: {user_id}\nКоличество покупок: {purchases}")
+    return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await start(update, context)
     return ConversationHandler.END
 
 async def run_bot():
-    """Запуск Telegram бота"""
     application = Application.builder().token(BOT_TOKEN).build()
     
     # Регистрация обработчиков
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.Regex('^(Купить)$'), buy))
     application.add_handler(MessageHandler(filters.Regex('^(Отзывы)$'), reviews))
     application.add_handler(MessageHandler(filters.Regex('^(Поддержка)$'), support))
     application.add_handler(MessageHandler(filters.Regex('^(Профиль)$'), profile))
@@ -247,8 +251,7 @@ async def run_bot():
         states={
             States.BUY: [
                 MessageHandler(
-                    filters.TEXT & ~filters.COMMAND & 
-                    ~filters.Regex('^(Отзывы|Поддержка|Профиль)$'),
+                    filters.TEXT & ~filters.COMMAND,
                     handle_buy_menu
                 ),
             ],
@@ -273,8 +276,12 @@ async def run_bot():
         },
         fallbacks=[
             CommandHandler('cancel', cancel),
-            MessageHandler(filters.Regex('^(Назад)$'), start)
+            MessageHandler(filters.Regex('^(Назад|Отмена)$'), start),
+            MessageHandler(filters.Regex('^(Купить)$'), buy)
         ],
+        allow_reentry=True,
+        per_user=True,
+        per_chat=True
     )
     
     application.add_handler(conv_handler)
@@ -286,13 +293,11 @@ async def run_bot():
     return application
 
 async def shutdown(application):
-    """Корректное завершение работы бота"""
     await application.updater.stop()
     await application.stop()
     await application.shutdown()
 
 def main():
-    """Основная функция запуска"""
     # Запуск Flask в отдельном потоке
     Thread(target=run_flask, daemon=True).start()
     
