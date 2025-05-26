@@ -13,6 +13,7 @@ from threading import Thread
 from flask import Flask
 from dotenv import load_dotenv
 import time
+import asyncio
 
 # Загрузка переменных окружения
 load_dotenv()
@@ -149,6 +150,7 @@ async def services(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=Keyboards.services_menu()
     )
     return States.SERVICE
+
 async def accounts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Выберите аккаунт:",
@@ -228,53 +230,93 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await start(update, context)
     return ConversationHandler.END
 
+async def run_bot():
+    """Запуск Telegram бота"""
+    application = Application.builder().token(BOT_TOKEN).build()
+    
+    # Регистрация обработчиков
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.Regex('^(Купить)$'), buy))
+    application.add_handler(MessageHandler(filters.Regex('^(Отзывы)$'), reviews))
+    application.add_handler(MessageHandler(filters.Regex('^(Поддержка)$'), support))
+    application.add_handler(MessageHandler(filters.Regex('^(Профиль)$'), profile))
+    
+    # Обработчик диалога покупки
+    conv_handler = ConversationHandler(
+        entry_points=[MessageHandler(filters.Regex('^(Купить)$'), buy)],
+        states={
+            States.BUY: [
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND & 
+                    ~filters.Regex('^(Отзывы|Поддержка|Профиль)$'),
+                    handle_buy_menu
+                ),
+            ],
+            States.SERVICE: [
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND,
+                    handle_service
+                ),
+            ],
+            States.ACCOUNT: [
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND,
+                    handle_account
+                ),
+            ],
+            States.CURRENCY_AMOUNT: [
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND,
+                    handle_currency_amount
+                ),
+            ],
+        },
+        fallbacks=[
+            CommandHandler('cancel', cancel),
+            MessageHandler(filters.Regex('^(Назад)$'), start)
+        ],
+    )
+    
+    application.add_handler(conv_handler)
+    
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling()
+    
+    return application
+
+async def shutdown(application):
+    """Корректное завершение работы бота"""
+    await application.updater.stop()
+    await application.stop()
+    await application.shutdown()
+
 def main():
+    """Основная функция запуска"""
     # Запуск Flask в отдельном потоке
     Thread(target=run_flask, daemon=True).start()
     
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
     while True:
         try:
-            # Создание и настройка приложения бота
-            application = Application.builder().token(BOT_TOKEN).build()
-            
-            # Регистрация обработчиков
-            application.add_handler(CommandHandler("start", start))
-            
-            # Обработчики главного меню
-            application.add_handler(MessageHandler(filters.Regex('^(Купить)$'), buy))
-            application.add_handler(MessageHandler(filters.Regex('^(Отзывы)$'), reviews))
-            application.add_handler(MessageHandler(filters.Regex('^(Поддержка)$'), support))
-            application.add_handler(MessageHandler(filters.Regex('^(Профиль)$'), profile))
-            # Обработчик диалога покупки
-            conv_handler = ConversationHandler(
-                entry_points=[MessageHandler(filters.Regex('^(Купить)$'), buy)],
-                states={
-                    States.BUY: [
-                        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buy_menu),
-                    ],
-                    States.SERVICE: [
-                        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_service),
-                    ],
-                    States.ACCOUNT: [
-                        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_account),
-                    ],
-                    States.CURRENCY_AMOUNT: [
-                        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_currency_amount),
-                    ],
-                },
-                fallbacks=[CommandHandler('cancel', cancel)],
-            )
-            
-            application.add_handler(conv_handler)
-            
-            # Запуск бота
-            logger.info("Бот запускается...")
-            application.run_polling()
-            
+            logger.info("Запуск бота...")
+            application = loop.run_until_complete(run_bot())
+            loop.run_forever()
         except Exception as e:
             logger.error(f"Ошибка в работе бота: {str(e)}")
+            if 'application' in locals():
+                loop.run_until_complete(shutdown(application))
             logger.info("Перезапуск через 10 секунд...")
             time.sleep(10)
+        except KeyboardInterrupt:
+            logger.info("Остановка бота...")
+            if 'application' in locals():
+                loop.run_until_complete(shutdown(application))
+            break
+        finally:
+            loop.close()
 
 if __name__ == '__main__':
     main()
