@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 
 # Конфигурация бота
 class Config:
-    BOT_TOKEN = "8146633102:AAFeSmP93aUa2DFV5zhaFF5X7oQNTj5B8gs"
     SHOP_NAME = "Balon Rails Shop"
     SUPPORT_USERNAME = "@Balon_Manager"
     REVIEWS_CHANNEL = "https://t.me/BalonRails"
