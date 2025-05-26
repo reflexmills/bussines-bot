@@ -22,7 +22,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
-logger = logging.getLogger(name)
+logger = logging.getLogger(__name__)
 
 # Конфигурация бота
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -106,7 +106,7 @@ class Keyboards:
         return ReplyKeyboardMarkup([["Назад"]], resize_keyboard=True)
 
 # Веб-сервер для Render
-app = Flask(name)
+app = Flask(__name__)
 
 @app.route('/')
 def home():
@@ -276,5 +276,5 @@ def main():
             logger.info("Перезапуск через 10 секунд...")
             time.sleep(10)
 
-if name == 'main':
+if __name__ == '__main__':
     main()
