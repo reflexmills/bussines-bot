@@ -13,12 +13,16 @@ import os
 from threading import Thread
 from flask import Flask
 
+# Загружаем переменные из .env
+load_dotenv() 
+
 # Настройка логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
 
 # Конфигурация бота
 class Config:
@@ -207,48 +211,55 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 def main():
-    # Запуск Flask в отдельном потоке
-    Thread(target=run_flask, daemon=True).start()
-    
-    # Создание и настройка приложения бота
-    application = ApplicationBuilder().token(Config.BOT_TOKEN).build()
-    
-    # Регистрация обработчиков
-    application.add_handler(CommandHandler("start", start))
-    
-    # Обработчики главного меню
-    application.add_handler(MessageHandler(filters.Regex('^(Купить)$'), buy))
-    application.add_handler(MessageHandler(filters.Regex('^(Отзывы)$'), reviews))
-    application.add_handler(MessageHandler(filters.Regex('^(Поддержка)$'), support))
-    application.add_handler(MessageHandler(filters.Regex('^(Профиль)$'), profile))
-    
-    # Обработчик диалога покупки
-    conv_handler = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex('^(Купить)$'), buy)],
-        states={
-            States.BUY: [
-                MessageHandler(filters.Regex('^(Услуги)$'), services),
-                MessageHandler(filters.Regex('^(Аккаунты)$'), accounts),
-                MessageHandler(filters.Regex('^(Назад)$'), start),
-            ],
-            States.SERVICE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_service),
-            ],
-            States.ACCOUNT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_account),
-            ],
-            States.CURRENCY_AMOUNT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_currency_amount),
-            ],
-        },
-        fallbacks=[CommandHandler('cancel', cancel)],
-    )
-    
-    application.add_handler(conv_handler)
-    
-    # Запуск бота
-    application.run_polling()
+    while True:  # Бесконечный цикл для перезапуска при ошибках
+        try:
+            # Запуск Flask в отдельном потоке
+            Thread(target=run_flask, daemon=True).start()
+            
+            # Создание и настройка приложения бота
+            application = ApplicationBuilder().token(Config.BOT_TOKEN).build()
+            
+            # Регистрация обработчиков
+            application.add_handler(CommandHandler("start", start))
+            
+            # Обработчики главного меню
+            application.add_handler(MessageHandler(filters.Regex('^(Купить)$'), buy))
+            application.add_handler(MessageHandler(filters.Regex('^(Отзывы)$'), reviews))
+            application.add_handler(MessageHandler(filters.Regex('^(Поддержка)$'), support))
+            application.add_handler(MessageHandler(filters.Regex('^(Профиль)$'), profile))
+            
+            # Обработчик диалога покупки
+            conv_handler = ConversationHandler(
+                entry_points=[MessageHandler(filters.Regex('^(Купить)$'), buy)],
+                states={
+                    States.BUY: [
+                        MessageHandler(filters.Regex('^(Услуги)$'), services),
+                        MessageHandler(filters.Regex('^(Аккаунты)$'), accounts),
+                        MessageHandler(filters.Regex('^(Назад)$'), start),
+                    ],
+                    States.SERVICE: [
+                        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_service),
+                    ],
+                    States.ACCOUNT: [
+                        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_account),
+                    ],
+                    States.CURRENCY_AMOUNT: [
+                        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_currency_amount),
+                    ],
+                },
+                fallbacks=[CommandHandler('cancel', cancel)],
+            )
+            
+            application.add_handler(conv_handler)
+            
+            # Запуск бота
+            logger.info("Бот запускается...")
+            application.run_polling()
+            
+        except Exception as e:
+            logger.error(f"Ошибка в работе бота: {str(e)}")
+            logger.info("Перезапуск через 10 секунд...")
+            time.sleep(10)
 
 if __name__ == '__main__':
-    Thread(target=run_flask, daemon=True).start()
     main()
