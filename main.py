@@ -1,20 +1,21 @@
 import logging
 from telegram import ReplyKeyboardMarkup, Update
 from telegram.ext import (
-    ApplicationBuilder,
+    Application,
     CommandHandler,
     MessageHandler,
     filters,
     ConversationHandler,
-    ContextTypes,
-    CallbackContext
+    ContextTypes
 )
 import os
 from threading import Thread
 from flask import Flask
+from dotenv import load_dotenv
+import time
 
-# Загружаем переменные из .env
-load_dotenv() 
+# Загрузка переменных окружения
+load_dotenv()
 
 # Настройка логирования
 logging.basicConfig(
@@ -23,8 +24,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 # Конфигурация бота
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN не найден в переменных окружения")
+
 class Config:
     SHOP_NAME = "Balon Rails Shop"
     SUPPORT_USERNAME = "@Balon_Manager"
@@ -62,16 +66,6 @@ class UserData:
         if user_id not in cls._data:
             cls._data[user_id] = {'purchases': 0}
         cls._data[user_id]['purchases'] += 1
-
-# Веб-сервер для Render
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "Bot is running!"
-
-def run_flask():
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
 
 # Клавиатуры
 class Keyboards:
@@ -111,6 +105,16 @@ class Keyboards:
     def back_menu():
         return ReplyKeyboardMarkup([["Назад"]], resize_keyboard=True)
 
+# Веб-сервер для Render
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot is running!"
+
+def run_flask():
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
+
 # Обработчики команд
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -138,9 +142,9 @@ async def accounts(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=Keyboards.accounts_menu()
     )
     return States.ACCOUNT
-
-async def handle_service(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def handle_service(update: Update, context: ContextTypes.DEFAULT_TYPE):
     service = update.message.text
+    
     if service == "Назад":
         return await buy(update, context)
     
@@ -211,13 +215,13 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 def main():
-    while True:  # Бесконечный цикл для перезапуска при ошибках
+    # Запуск Flask в отдельном потоке
+    Thread(target=run_flask, daemon=True).start()
+    
+    while True:
         try:
-            # Запуск Flask в отдельном потоке
-            Thread(target=run_flask, daemon=True).start()
-            
             # Создание и настройка приложения бота
-            application = ApplicationBuilder().token(Config.BOT_TOKEN).build()
+            application = Application.builder().token(BOT_TOKEN).build()
             
             # Регистрация обработчиков
             application.add_handler(CommandHandler("start", start))
@@ -232,7 +236,7 @@ def main():
             conv_handler = ConversationHandler(
                 entry_points=[MessageHandler(filters.Regex('^(Купить)$'), buy)],
                 states={
-                    States.BUY: [
+            States.BUY: [
                         MessageHandler(filters.Regex('^(Услуги)$'), services),
                         MessageHandler(filters.Regex('^(Аккаунты)$'), accounts),
                         MessageHandler(filters.Regex('^(Назад)$'), start),
