@@ -24,7 +24,7 @@ def keep_alive():
     while True:
         try:
             # Замените URL на ваш (должен начинаться с https://)
-            url = "https://your-bot-name.onrender.com"  
+            url = "https://bussines-bot-telegq.onrender.com"  
             response = requests.get(url)
             print(f"Keep-alive запрос отправлен. Статус: {response.status_code}")
         except Exception as e:
