@@ -15,6 +15,24 @@ from dotenv import load_dotenv
 import asyncio
 import time
 from datetime import datetime
+import requests
+
+def keep_alive():
+    """
+    Отправляет запросы каждые 5 минут, чтобы бот не засыпал на Render.
+    """
+    while True:
+        try:
+            # Замените URL на ваш (должен начинаться с https://)
+            url = "https://your-bot-name.onrender.com"  
+            response = requests.get(url)
+            print(f"Keep-alive запрос отправлен. Статус: {response.status_code}")
+        except Exception as e:
+            print(f"Ошибка keep-alive: {e}")
+        time.sleep(300)  # Интервал 5 минут (300 секунд)
+
+# Запуск в отдельном потоке
+Thread(target=keep_alive, daemon=True).start()
 
 # Загрузка переменных окружения
 load_dotenv()
