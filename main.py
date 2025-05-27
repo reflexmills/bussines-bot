@@ -182,7 +182,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"""🌟 <b>Добро пожаловать в {Config.SHOP_NAME}!</b> 🌟
 
-Здесь вы можете приобрести игровые ценности для Rail Nation.
+Здесь вы можете приобрести игровые ценности для Dead Rails.
 
 Выберите действие:""",
         parse_mode='HTML',
@@ -262,7 +262,7 @@ async def handle_service(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📌 <b>Реквизиты для оплаты:</b>
 {Config.PAYMENT_DETAILS}
 
-После оплаты отправьте скриншот в этот чат.""",
+После оплаты отправьте скриншот в чат с поддержкой.""",
                 parse_mode='HTML',
                 reply_markup=Keyboards.back_to_main_menu()
             )
@@ -290,7 +290,7 @@ async def handle_account(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📌 <b>Реквизиты для оплаты:</b>
 {Config.PAYMENT_DETAILS}
 
-После оплаты отправьте скриншот в этот чат.""",
+После оплаты отправьте скриншот в чат с поддержкой.""",
             parse_mode='HTML',
             reply_markup=Keyboards.back_to_main_menu()
         )
@@ -321,7 +321,7 @@ async def handle_currency_amount(update: Update, context: ContextTypes.DEFAULT_T
 📌 <b>Реквизиты для оплаты:</b>
 {Config.PAYMENT_DETAILS}
 
-После оплаты отправьте скриншот в этот чат.""",
+После оплаты отправьте скриншот в чат с поддержкой.""",
                 parse_mode='HTML',
                 reply_markup=Keyboards.back_to_main_menu()
             )
