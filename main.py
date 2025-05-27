@@ -32,7 +32,7 @@ if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN не найден в переменных окружения")
 
 class Config:
-    SHOP_NAME = "🚂 Balon Rails Shop | Premium магазин для Rail Nation"
+    SHOP_NAME = "🚂 Balon Rails Shop | Premium магазин для Dead Rails"
     SUPPORT_USERNAME = "@Balon_Manager"
     REVIEWS_CHANNEL = "https://t.me/BalonRails"
     PAYMENT_DETAILS = "Сбербанк: 2202208334143592"
